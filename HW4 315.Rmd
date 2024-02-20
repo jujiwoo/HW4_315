@@ -1,0 +1,282 @@
+---
+title: "HW4_315"
+author: "Justin Song - jjs5874 - Scott - https://github.com/jujiwoo/HW3_315"
+date: "2024-02-14"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=5, fig.width=10, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=100))
+```
+
+```{r, echo=FALSE, results='hide', message=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(mosaic)
+gas = read.csv('gasprices.csv')
+sclass = read.csv('sclass.csv')
+pilot = read.csv('nbc_pilotsurvey.csv')
+ebay = read.csv('ebay.csv')
+```
+
+# Problem 1
+
+**Theory (A)**
+Claim: Gas stations charge more if they lack direct competition in sight.
+
+Evidence:
+```{r, echo=FALSE}
+mean(Price ~ Competitors, data=gas)
+diffmean(Price ~ Competitors, data=gas)
+
+#no competition indicates higher mean price of 0.023, proving the claim true so far
+
+gas_station_differences = do(10000)*diffmean(Price ~ Competitors, data=mosaic::resample(gas))
+
+ggplot(gas_station_differences) + 
+  geom_histogram(aes(x=diffmean))
+
+
+confint(gas_station_differences, level = 0.95)
+
+```
+Conclusion: The data shows that we can be 95% confident that the true difference in mean price between gas stations with no competitors and gas stations with competitors (at intersections) lies between `r round(confint(gas_station_differences, level = 0.95)[2], 4)` cents and `r round(confint(gas_station_differences, level = 0.95)[3], 4)` cents. However, the uncertainty is high, as the true difference could be positive (stations with no competitors costing more), negative (stations with no competitors costing less), or very close to zero. We cannot conclude there is solid statistical evidence that lack of competition increases price, since the 95% confidence interval contains 0. The data provides only weak and inconclusive evidence regarding whether lack of direct competitors affects gas prices.
+
+\newpage
+
+**Theory (B)**
+Claim: The richer the area, the higher the gas prices.
+
+Evidence:
+```{r, echo=FALSE}
+
+income_bootstrap = do(10000)*lm(Price ~ Income, data=mosaic::resample(gas))
+confint(income_bootstrap, level = 0.95)
+
+
+```
+Conclusion: The data provides some support for the theory that higher income areas have higher gas prices. The positive 95% CI indicates a statistically significant but small effect, with prices increasing by `r round(confint(income_bootstrap, level = 0.95)[2,2], 4)` to `r round(confint(income_bootstrap, level = 0.95)[2,3],4)` cents per $1 increase in the Income variable. While significant, the small effect size suggests Income alone is not a major driver of gas price differences across stations.
+
+\newpage 
+
+**Theory (C)**
+Claim: Gas stations at stoplights charge more.
+
+Evidence:
+```{r, echo=FALSE}
+mean(Price ~ Stoplight, data=gas)
+diffmean(Price ~ Stoplight, data=gas)
+
+
+stoplight_differences = do(10000)*diffmean(Price ~ Stoplight, data=mosaic::resample(gas))
+
+ggplot(stoplight_differences) + 
+  geom_histogram(aes(x=diffmean))
+
+
+confint(stoplight_differences, level = 0.95)
+```
+
+Conclusion: The data does not support the theory that gas stations at stoplights charge higher prices. The 95% CI contains zero, indicating no statistically significant effect of stoplight location on price based on this sample. Overall, this analysis does not support theory C about stoplight locations commanding higher prices. The lack of a clear positive effect and confidence interval straddling zero provides no evidence for the theory in this data.
+
+\newpage
+
+**Theory (D)**
+
+Claim: Gas stations with direct highway access charge more.
+
+Evidence:
+```{r, echo=FALSE}
+mean(Price ~ Highway, data=gas)
+diffmean(Price ~ Highway, data=gas)
+
+
+highway_differences = do(10000)*diffmean(Price ~ Highway, data=mosaic::resample(gas))
+
+ggplot(highway_differences) + 
+  geom_histogram(aes(x=diffmean))
+
+
+confint(highway_differences, level = 0.95)
+
+```
+Conclusion: The data provides evidence supporting the theory that gas stations with direct highway access charge higher prices. The 95% confidence interval of `r round(confint(highway_differences, level = 0.95)[2],4)` and `r round(confint(highway_differences, level = 0.95)[3],4)` is entirely positive, indicating a statistically significant increase in price between `r round(confint(highway_differences, level = 0.95)[2],4)` and `r round(confint(highway_differences, level = 0.95)[3],4)` cents per gallon for stations with highway access compared to those without. While the effect size is modest, the data suggests highway access is positively associated with higher gas prices.
+
+\newpage
+
+**Theory (E)**
+
+Claim: Shell charges more than all other non-Shell brands.
+
+Evidence:
+```{r, echo=FALSE}
+
+#shell_vs_other = filter(gas, Brand == "Shell" | Brand == "Other")
+
+shell_vs_other <- gas %>%
+  mutate(is_shell = Brand == "Shell")
+
+mean(Price ~ Brand, data=shell_vs_other)
+diffmean(Price ~ is_shell, data=shell_vs_other)
+
+shell_differences = do(10000)*diffmean(Price ~ is_shell, data=mosaic::resample(shell_vs_other))
+
+ggplot(shell_differences) + 
+  geom_histogram(aes(x=diffmean))
+
+confint(shell_differences, level = 0.95)
+
+```
+Conclusion: The data does not support the theory that Shell charges more than other non-shell brands. The 95% CI contains zero, indicating no statistically significant effect of stoplight location on price based on this sample. 
+
+\newpage
+
+# Problem 2
+
+**Part A**
+
+```{r, echo=FALSE}
+sclass_filtered = filter(sclass, year == 2011 & trim == "63 AMG")
+
+sclass_bootstrap = do(10000)*mean(~mileage, data=mosaic::resample(sclass_filtered))
+
+confint(sclass_bootstrap, level = 0.95)
+```
+
+**Part B**
+
+```{r, echo=FALSE}
+sclass_filtered2 = sclass %>%
+  filter(year == 2014 & trim == "550") %>% 
+  mutate(isBlack = color == "Black")
+
+boot_sclass2 = do(10000)*prop(~isBlack == "TRUE", data=mosaic::resample(sclass_filtered2))
+
+confint(boot_sclass2, level = 0.95)
+
+
+```
+\newpage
+
+# Problem 3
+
+**Part (A)**
+
+```{r, echo=FALSE}
+
+pilot_filtered = pilot %>%
+  filter(Show == "Living with Ed" | Show == "My Name is Earl")
+
+mean(Q1_Happy ~ Show, data=pilot_filtered)
+diffmean(Q1_Happy ~ Show, data=pilot_filtered)
+
+pilot_bootstrap = do(10000)*diffmean(Q1_Happy ~ Show, data=mosaic::resample(pilot_filtered))
+
+confint(pilot_bootstrap, level = 0.95)
+
+```
+
+Question: Is there evidence that one show ("Living with Ed" versus "My Name is Earl") consistently produces a higher mean Q1_Happy response among viewers?
+
+Approach: I will utilize diffmean to calculate the difference in means between the two shows.
+
+Results: The 95% confidence interval ranges between `r round(confint(pilot_bootstrap, level = 0.95)[2],4)` and `r round(confint(pilot_bootstrap, level = 0.95)[3],4)`.
+  
+Conclusion:The data shows that one show does not produce a higher mean happiness response among viewers over the other. The 95% CI contains zero, indicating no statistically significant effect of stoplight location on price based on this sample. 
+
+**Part (B)**
+
+```{r, echo=FALSE}
+pilot_filtered2 = pilot %>%
+  filter(Show == "The Biggest Loser" | Show == "The Apprentice: Los Angeles")
+
+mean(Q1_Annoyed ~ Show, data=pilot_filtered2)
+diffmean(Q1_Annoyed ~ Show, data=pilot_filtered2)
+
+pilot_bootstrap2 = do(10000)*diffmean(Q1_Annoyed ~ Show, data=mosaic::resample(pilot_filtered2))
+
+confint(pilot_bootstrap2, level = 0.95)
+```
+
+Question: "The Biggest Loser” versus “The Apprentice: Los Angeles.” Which reality/contest
+show made people feel more annoyed?
+
+Approach: I will filter the original data set by the shows I want to analyze, followed by a diffmean function to analyze the confidence interval.
+
+Results: The 95% confidence interval ranges between `r round(confint(pilot_bootstrap2, level = 0.95)[2],4)` and `r round(confint(pilot_bootstrap2, level = 0.95)[3],4)`.
+
+Conclusion: Since the confidence interval ranges between `r round(confint(pilot_bootstrap2, level = 0.95)[2],4)` and `r round(confint(pilot_bootstrap2, level = 0.95)[3],4)`, it is evident that the show, "The Apprentice: Los Angeles" has consistently produced more annoyed response from viewers. 
+
+**Part (C)**
+
+```{r, echo=FALSE}
+pilot_filtered3 = pilot %>%
+  filter(Show == "Dancing with the Stars")
+
+pilot_filtered3 = pilot_filtered3 %>%
+  mutate(isConfusing = Q2_Confusing >= 4)
+
+prop(~isConfusing, data=pilot_filtered3)
+
+
+pilot_bootstrap3 = do(10000)*prop(~isConfusing, data=mosaic::resample(pilot_filtered3))
+
+confint(pilot_bootstrap3, level = 0.95)
+```
+
+
+Question:  What proportion of American TV watchers would we expect to give a
+response of 4 or greater to the “Q2_Confusing” question? 
+
+Approach: I will first filter the original dataset to only contain the show "Dancing with the Stars". I will then mutate a new variable that shows scores of confusion >= 4 and work with that new variable. 
+
+Results: The 95% confidence interval ranges between `r round(confint(pilot_bootstrap3, level = 0.95)[2],4)` and `r round(confint(pilot_bootstrap3, level = 0.95)[3],4)`.
+  
+Conclusion: Thus, we can conclude that, based on the sample data and with 95% confidence, somewhere between approximately 3.87% and 11.60% of American TV watchers find "Dancing with the Stars" confusing. This range provides an estimate of the uncertainty surrounding the true proportion.
+
+\newpage
+
+**Question 4**
+
+```{r, echo=FALSE}
+
+ebay = ebay %>%
+  mutate(revenue_ratio = rev_after/rev_before)
+
+mean(~revenue_ratio, data=ebay)
+
+revenue_bootstrap = do(10000)*mean(~revenue_ratio, data=mosaic::resample(ebay))
+
+confint(revenue_bootstrap, level = 0.95)
+
+treatment_group = ebay %>%
+  filter(adwords_pause == 1)
+
+control_group = ebay %>%
+  filter(adwords_pause == 0)
+
+#treatment group / control group
+mean(treatment_group$revenue_ratio, na.rm = TRUE)
+mean(control_group$revenue_ratio, na.rm = TRUE)
+
+
+treatment_bootstrap = do(10000) * mean(~revenue_ratio, data = mosaic::resample(treatment_group))
+control_bootstrap = do(10000) * mean(~revenue_ratio, data = mosaic::resample(control_group))
+
+#treatment / control
+confint(treatment_bootstrap, level = 0.95, na.rm = TRUE)
+confint(control_bootstrap, level = 0.95, na.rm = TRUE)
+```
+
+Question: We are trying to assess whether eBay's paid advertising on Google's search platform (AdWords) was improving eBay's revenue or not.
+
+Approach: To answer this question, we conducted an experiment where eBay randomly assigned designated market areas (DMAs) to either a treatment group (with AdWords advertising paused for a month) or a control group (with AdWords advertising continuing as usual). We then compared the revenue ratio (revenue after the experiment / revenue before the experiment) between the treatment and control groups using bootstrap resampling and confidence intervals.
+
+Results: Treatment group mean revenue ratio: 0.8967 (95% CI: 0.8651, 0.9284). Control group mean revenue ratio: 0.9486 (95% CI: 0.9270, 0.9703)
+The 95% confidence intervals for the treatment and control groups do not overlap, suggesting a significant difference in the revenue ratios between the two groups.
+
+Conclusion: The lower mean revenue ratio and the non-overlapping confidence intervals in the treatment group indicate that pausing AdWords advertising had a negative impact on eBay's revenue compared to the control group.Overall, the results suggest that eBay's stakeholders should continue investing in paid search advertising on Google's AdWords platform, as it appears to be driving additional revenue for the company and mitigating potential revenue losses.
